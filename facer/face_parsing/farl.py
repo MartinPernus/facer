@@ -1,13 +1,19 @@
-from typing import Optional, Dict, Any
 import functools
+from typing import Any, Dict, Optional
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 
+from ..transform import (
+    get_crop_and_resize_matrix,
+    get_face_align_matrix,
+    get_face_align_matrix_celebm,
+    make_inverted_tanh_warp_grid,
+    make_tanh_warp_grid,
+)
 from ..util import download_jit
-from ..transform import (get_crop_and_resize_matrix, get_face_align_matrix, get_face_align_matrix_celebm,
-                         make_inverted_tanh_warp_grid, make_tanh_warp_grid)
 from .base import FaceParser
-import numpy as np
 
 pretrain_settings = {
     'lapa/448': {
@@ -126,14 +132,10 @@ class FaRLFaceParser(FaceParser):
         assert images.ndim == 4
         assert images.shape[1] == 3
 
-        max_val = images.max()
-        if max_val <= 1:
-            assert images.dtype == torch.float32 or images.dtype == torch.float16
-        elif max_val <= 255:
-            assert images.dtype == torch.uint8
+        if images.dtype == torch.uint8:
             images = images.float() / 255.0
-        else:
-            raise ValueError(f"Unsupported image type: {images.dtype}")
+        assert images.dtype == torch.float32 or images.dtype == torch.float16, "Unsupported image type: {images.dtype}"
+
         if images.device != self.device:
             images = images.to(device=self.device)
         return images
